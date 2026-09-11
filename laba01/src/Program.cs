@@ -41,7 +41,7 @@ namespace GeneticSearch
             return data;
         }
 
-
+        // RLE decoding of compressed amino acid sequence
         static string RLDecoding(string sequence)
         {
             StringBuilder result = new StringBuilder();
@@ -66,8 +66,7 @@ namespace GeneticSearch
 
             return result.ToString();
         }
-
-
+        // RLE encoding of amino acid sequence
         static string RLEncoding(string sequence)
         {
             StringBuilder result = new StringBuilder();
