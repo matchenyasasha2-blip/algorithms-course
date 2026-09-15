@@ -1,78 +1,88 @@
-﻿namespace GeneticSearch;
+﻿using System.IO;
+using System.Linq;
+
+namespace GeneticSearch;
 
 public class GeneticSearch
 {
+    private readonly List<Protein> proteins;
+    private readonly StreamWriter output;
+    private readonly RLE rle = new RLE();
 
-    private List<Protein> proteins;
-
-
-    public GeneticSearch(List<Protein> proteins)
+    public GeneticSearch(List<Protein> proteins, StreamWriter output)
     {
         this.proteins = proteins;
+        this.output = output;
     }
-
 
     public void Search(string text)
     {
+        string sequence = rle.Decode(text);
+
+        bool found = false;
+        output.WriteLine("organism\t\t\tprotein");
+
         foreach (var p in proteins)
         {
-            if (p.AminoAcids.Contains(text))
+            if (p.AminoAcids.Contains(sequence))
             {
-                Console.WriteLine(
-                    p.Organism + " " + p.Name);
+                output.WriteLine($"{p.Organism}\t{p.Name}");
+                found = true;
             }
         }
+
+        if (!found)
+            output.WriteLine("NOT FOUND");
     }
 
-
-    public void Mode(string name)
+    public void Diff(string name1, string name2)
     {
-        var protein =
-            proteins.First(x => x.Name == name);
+        var p1 = proteins.FirstOrDefault(x => x.Name == name1);
+        var p2 = proteins.FirstOrDefault(x => x.Name == name2);
 
+        output.Write("amino-acids difference:  ");
 
-        var result =
-            protein.AminoAcids
-            .GroupBy(x => x)
-            .OrderByDescending(x => x.Count())
-            .First();
+        if (p1 == null || p2 == null)
+        {
+            output.Write("MISSING: ");
+            if (p1 == null) output.Write(name1 + " ");
+            if (p2 == null) output.Write(name2);
+            output.WriteLine();
+            return;
+        }
 
-
-        Console.WriteLine(
-            result.Key + " " + result.Count());
-    }
-
-
-    public void Diff(string first, string second)
-    {
-        var p1 =
-            proteins.First(x => x.Name == first);
-
-        var p2 =
-            proteins.First(x => x.Name == second);
-
-
-        int count = 0;
-
-
-        int length =
-            Math.Min(
-            p1.AminoAcids.Length,
-            p2.AminoAcids.Length);
-
+        int diff = 0;
+        int length = Math.Min(p1.AminoAcids.Length, p2.AminoAcids.Length);
 
         for (int i = 0; i < length; i++)
         {
             if (p1.AminoAcids[i] != p2.AminoAcids[i])
-                count++;
+                diff++;
         }
 
+        diff += Math.Abs(p1.AminoAcids.Length - p2.AminoAcids.Length);
+        output.WriteLine(diff);
+    }
 
-        count += Math.Abs(
-            p1.AminoAcids.Length -
-            p2.AminoAcids.Length);
+    public void Mode(string name)
+    {
+        var protein = proteins.FirstOrDefault(x => x.Name == name);
 
+        output.Write("amino-acid occurs:  ");
 
-        Console.WriteLine(count);
+        if (protein == null)
+        {
+            output.WriteLine("MISSING: " + name);
+            return;
+        }
+
+        var result = protein.AminoAcids
+            .GroupBy(c => c)
+            .Select(g => new { Acid = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count)
+            .ThenBy(x => x.Acid)
+            .First();
+
+        output.WriteLine($"{result.Acid} {result.Count}");
     }
 }

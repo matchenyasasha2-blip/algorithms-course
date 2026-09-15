@@ -2,10 +2,9 @@
 
 public class Protein
 {
-    public string Name;
-    public string Organism;
-    public string AminoAcids;
-
+    public string Name { get; }
+    public string Organism { get; }
+    public string AminoAcids { get; }
 
     public Protein(string name, string organism, string aminoAcids)
     {

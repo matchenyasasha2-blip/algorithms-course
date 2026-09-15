@@ -1,322 +1,123 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
 namespace GeneticSearch
 {
     class Program
     {
-        struct Protein
-        {
-            public string name;
-            public string organism;
-            public string amino_acids;
-        }
-
-
         static List<Protein> ReadData(string filename)
         {
             List<Protein> data = new List<Protein>();
+            RLE rle = new RLE();
 
-            StreamReader reader = new StreamReader(filename);
-
-            while (!reader.EndOfStream)
+            using (StreamReader reader = new StreamReader(filename))
             {
-                string line = reader.ReadLine();
+                while (!reader.EndOfStream)
+                {
+                    string line = reader.ReadLine();
+                    if (string.IsNullOrWhiteSpace(line)) continue;
 
-                string[] parts = line.Split('\t');
+                    string[] parts = line.Split('\t');
+                    if (parts.Length < 3) continue;
 
-                Protein p;
+                    string name = parts[0];
+                    string organism = parts[1];
+                    string aminoAcids = rle.Decode(parts[2]);
 
-                p.name = parts[0];
-                p.organism = parts[1];
-                p.amino_acids = RLDecoding(parts[2]);
-
-                data.Add(p);
+                    data.Add(new Protein(name, organism, aminoAcids));
+                }
             }
-
-            reader.Close();
 
             return data;
         }
 
-        // RLE decoding of compressed amino acid sequence
-        static string RLDecoding(string sequence)
-        {
-            StringBuilder result = new StringBuilder();
-
-            for (int i = 0; i < sequence.Length; i++)
-            {
-                if (char.IsDigit(sequence[i]))
-                {
-                    int count = sequence[i] - '0';
-                    char letter = sequence[i + 1];
-
-                    for (int j = 0; j < count; j++)
-                        result.Append(letter);
-
-                    i++;
-                }
-                else
-                {
-                    result.Append(sequence[i]);
-                }
-            }
-
-            return result.ToString();
-        }
-        // RLE encoding of amino acid sequence
-        static string RLEncoding(string sequence)
-        {
-            StringBuilder result = new StringBuilder();
-
-            int count = 1;
-
-            for (int i = 0; i < sequence.Length; i++)
-            {
-                if (i + 1 < sequence.Length &&
-                    sequence[i] == sequence[i + 1])
-                {
-                    count++;
-                }
-                else
-                {
-                    if (count > 2)
-                        result.Append(count);
-
-                    result.Append(sequence[i]);
-
-                    count = 1;
-                }
-            }
-
-            return result.ToString();
-        }
-
-
-        static void Search(List<Protein> proteins, string seq, StreamWriter output)
-        {
-            seq = RLDecoding(seq);
-
-            bool found = false;
-
-            output.WriteLine("organism\t\t\tprotein");
-
-            foreach (Protein p in proteins)
-            {
-                if (p.amino_acids.Contains(seq))
-                {
-                    found = true;
-
-                    output.WriteLine(
-                        p.organism + "\t\t" + p.name);
-                }
-            }
-
-
-            if (!found)
-                output.WriteLine("NOT FOUND");
-        }
-
-
-        static Protein? FindProtein(List<Protein> proteins, string name)
-        {
-            foreach (Protein p in proteins)
-            {
-                if (p.name == name)
-                    return p;
-            }
-
-            return null;
-        }
-
-
-        static void Diff(List<Protein> proteins,
-                         string name1,
-                         string name2,
-                         StreamWriter output)
-        {
-            Protein? p1 = FindProtein(proteins, name1);
-            Protein? p2 = FindProtein(proteins, name2);
-
-
-            if (p1 == null || p2 == null)
-            {
-                output.Write("MISSING: ");
-
-                if (p1 == null)
-                    output.Write(name1 + " ");
-
-                if (p2 == null)
-                    output.Write(name2);
-
-                output.WriteLine();
-
-                return;
-            }
-
-
-            int diff = 0;
-
-            int length = Math.Min(
-                p1.Value.amino_acids.Length,
-                p2.Value.amino_acids.Length);
-
-
-            for (int i = 0; i < length; i++)
-            {
-                if (p1.Value.amino_acids[i] !=
-                    p2.Value.amino_acids[i])
-                {
-                    diff++;
-                }
-            }
-
-
-            diff += Math.Abs(
-                p1.Value.amino_acids.Length -
-                p2.Value.amino_acids.Length);
-
-
-            output.WriteLine(diff);
-        }
-
-
-
-        static void Mode(List<Protein> proteins,
-                         string name,
-                         StreamWriter output)
-        {
-            Protein? protein = FindProtein(proteins, name);
-
-
-            if (protein == null)
-            {
-                output.WriteLine("MISSING: " + name);
-                return;
-            }
-
-
-            int[] count = new int[26];
-
-
-            foreach (char c in protein.Value.amino_acids)
-            {
-                count[c - 'A']++;
-            }
-
-
-            int max = 0;
-            char answer = 'Z';
-
-
-            for (char c = 'A'; c <= 'Z'; c++)
-            {
-                int value = count[c - 'A'];
-
-                if (value > max)
-                {
-                    max = value;
-                    answer = c;
-                }
-            }
-
-
-            output.WriteLine(answer + "\t" + max);
-        }
-
-
-
         static void ProcessCommands(
             List<Protein> proteins,
             string filename,
-            StreamWriter output)
+            StreamWriter output,
+            GeneticSearch search)
         {
-            StreamReader reader =
-                new StreamReader(filename);
+            RLE rle = new RLE();
 
-
-            int number = 1;
-
-
-            while (!reader.EndOfStream)
+            using (StreamReader reader = new StreamReader(filename))
             {
-                string line = reader.ReadLine();
+                int number = 1;
 
-                string[] parts =
-                    line.Split('\t');
-
-
-                output.WriteLine(
-                    number.ToString("000")
-                    + "   " + line);
-
-
-                if (parts[0] == "search")
+                while (!reader.EndOfStream)
                 {
-                    Search(
-                        proteins,
-                        parts[1],
-                        output);
+                    string line = reader.ReadLine();
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    string[] parts = line.Split('\t');
+
+                    string operationLine = line;
+                    if (parts[0] == "search")
+                    {
+                        string decoded = rle.Decode(parts[1]);
+                        operationLine = $"{parts[0]}\t{decoded}";
+                    }
+
+                    output.WriteLine($"{number:000}   {operationLine}");
+
+                    if (parts[0] == "search")
+                    {
+                        search.Search(parts[1]);
+                    }
+                    else if (parts[0] == "diff")
+                    {
+                        search.Diff(parts[1], parts[2]);
+                    }
+                    else if (parts[0] == "mode")
+                    {
+                        search.Mode(parts[1]);
+                    }
+
+                    output.WriteLine(new string('-', 74));
+                    number++;
                 }
-
-
-                if (parts[0] == "diff")
-                {
-                    Diff(
-                        proteins,
-                        parts[1],
-                        parts[2],
-                        output);
-                }
-
-
-                if (parts[0] == "mode")
-                {
-                    Mode(
-                        proteins,
-                        parts[1],
-                        output);
-                }
-
-
-                output.WriteLine(
-                    "--------------------------------------------------------------------------");
-
-
-                number++;
             }
-
-
-            reader.Close();
         }
-
-
 
         static void Main(string[] args)
         {
-            List<Protein> proteins =
-                ReadData("sequences.txt");
+            Console.Write("Выберите набор файлов (0, 1 или 2): ");
+            string choice = Console.ReadLine()?.Trim();
 
+            if (choice != "0" && choice != "1" && choice != "2")
+            {
+                Console.WriteLine("Неверный выбор. Допустимые значения: 0, 1, 2.");
+                return;
+            }
 
-            StreamWriter output =
-                new StreamWriter("genedata.txt");
+            string sequencesFile = $"sequences.{choice}.txt";
+            string commandsFile = $"commands.{choice}.txt";
+            string outputFile = $"genedata.{choice}.txt";
 
+            if (!File.Exists(sequencesFile))
+            {
+                Console.WriteLine($"Файл {sequencesFile} не найден.");
+                return;
+            }
+            if (!File.Exists(commandsFile))
+            {
+                Console.WriteLine($"Файл {commandsFile} не найден.");
+                return;
+            }
 
-            output.WriteLine("Alexandra");
-            output.WriteLine("Genetic Searching");
-            output.WriteLine(
-            "--------------------------------------------------------------------------");
+            List<Protein> proteins = ReadData(sequencesFile);
 
+            using (StreamWriter output = new StreamWriter(outputFile))
+            {
+                output.WriteLine("Alexandra Matchenya");
+                output.WriteLine("Genetic Searching");
+                output.WriteLine(new string('-', 74));
 
-            ProcessCommands(
-                proteins,
-                "commands.txt",
-                output);
+                var search = new GeneticSearch(proteins, output);
+                ProcessCommands(proteins, commandsFile, output, search);
+            }
 
-
-            output.Close();
+            Console.WriteLine($"Результат записан в файл: {outputFile}");
         }
     }
 }

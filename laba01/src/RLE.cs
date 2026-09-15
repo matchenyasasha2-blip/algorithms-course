@@ -4,11 +4,9 @@ namespace GeneticSearch;
 
 public class RLE
 {
-
     public string Decode(string text)
     {
         StringBuilder result = new();
-
 
         for (int i = 0; i < text.Length; i++)
         {
@@ -23,25 +21,22 @@ public class RLE
                 i++;
             }
             else
+            {
                 result.Append(text[i]);
+            }
         }
-
 
         return result.ToString();
     }
 
-
     public string Encode(string text)
     {
         StringBuilder result = new();
-
         int count = 1;
-
 
         for (int i = 0; i < text.Length; i++)
         {
-            if (i + 1 < text.Length &&
-               text[i] == text[i + 1])
+            if (i + 1 < text.Length && text[i] == text[i + 1])
             {
                 count++;
             }
@@ -51,11 +46,9 @@ public class RLE
                     result.Append(count);
 
                 result.Append(text[i]);
-
                 count = 1;
             }
         }
-
 
         return result.ToString();
     }
